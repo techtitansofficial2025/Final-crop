@@ -155,6 +155,23 @@
         .predict-btn:active {
             transform: translateY(0);
         }
+        .location-btn {
+            display: inline-flex;
+            align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(45deg, #43a047, #388e3c);
+  color: white;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.location-btn:active { transform: translateY(1px); }
+.location-btn[disabled] { opacity: 0.65; cursor: not-allowed; transform: none; }
+
 
         .results-container {
             text-align: center;
@@ -419,6 +436,14 @@
                 <h2 style="margin-bottom: 25px; color: #333; text-align: center;">
                     <i class="fas fa-edit"></i> <span id="formTitle">फसल की जानकारी दें</span>
                 </h2>
+            <!-- Use my location button -->
+<div style="text-align:center; margin-bottom: 18px;">
+  <button type="button" id="useLocationBtn" class="location-btn" title="Auto-fill temperature, humidity and season from your location">
+    <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+    <span id="useLocationBtnText">Use my location</span>
+  </button>
+</div>
+
                 
                 <form id="cropForm">
                     <div class="form-group">
@@ -661,6 +686,9 @@
 
             const seasonPlaceholder = document.getElementById('seasonPlaceholder');
             if (seasonPlaceholder) seasonPlaceholder.textContent = translations[lang].seasonPlaceholder;
+            
+            const useLocTextEl = document.getElementById('useLocationBtnText');
+            if (useLocTextEl) useLocTextEl.textContent = (lang === 'hi') ? 'मेरा स्थान उपयोग करें' : 'Use my location';
 
             // removed the hard-coded pH range display per request
             document.getElementById('phLabel').innerHTML = translations[lang].phLabel + '<span class="bilingual"></span>';
@@ -1541,6 +1569,27 @@
                 return;
             }
         }
+        // Wire the "Use my location" button (do NOT auto-call tryAutoFillFromLocation on load)
+document.addEventListener('DOMContentLoaded', function() {
+  const useLocBtn = document.getElementById('useLocationBtn');
+  if (!useLocBtn) return;
+
+  useLocBtn.addEventListener('click', async function() {
+    useLocBtn.disabled = true;
+    const origHtml = useLocBtn.innerHTML;
+    useLocBtn.innerHTML = `<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Requesting...`;
+
+    try {
+      await tryAutoFillFromLocation();
+    } catch (err) {
+      console.error('Location button error:', err);
+      showNotification('Unable to complete location request', 'warning');
+    } finally {
+      useLocBtn.disabled = false;
+      useLocBtn.innerHTML = origHtml;
+    }
+  });
+});
 
         // ==================== end auto-fill logic ====================
 
@@ -1563,7 +1612,7 @@
 
             // Try auto-fill weather/season from system location.
             // If it fails or is denied, the fields remain editable and must be filled by user.
-            tryAutoFillFromLocation();
+            //tryAutoFillFromLocation();
         }
 
         document.addEventListener('DOMContentLoaded', initializeApp);
