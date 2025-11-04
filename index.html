@@ -686,9 +686,6 @@
 
             const seasonPlaceholder = document.getElementById('seasonPlaceholder');
             if (seasonPlaceholder) seasonPlaceholder.textContent = translations[lang].seasonPlaceholder;
-            
-            const useLocTextEl = document.getElementById('useLocationBtnText');
-            if (useLocTextEl) useLocTextEl.textContent = (lang === 'hi') ? 'मेरा स्थान उपयोग करें' : 'Use my location';
 
             // removed the hard-coded pH range display per request
             document.getElementById('phLabel').innerHTML = translations[lang].phLabel + '<span class="bilingual"></span>';
@@ -775,7 +772,7 @@
                     }
                 } else { // zaid
                     if (formData.soil.includes('sandy')) {
-                        prediction = { crop: '🌽 मक्का | Maize', water_source: '💦 ड्रिप सिंचाई | Drip Irrigation', duration: '⏰ 95 दिन | 95 days', water_required: '💧 600 लीटर/किग्रा | 600 L/kg' };
+                        prediction = { crop: '🌽 मक्का | Maize', water_source: '💦 ड्रिप सिंচाई | Drip Irrigation', duration: '⏰ 95 दिन | 95 days', water_required: '💧 600 लीटर/किग्रा | 600 L/kg' };
                     } else if (formData.soil.includes('loamy')) {
                         prediction = { crop: '🥔 आलू | Potato', water_source: '🚰 ट्यूबवेल | Tubewell', duration: '⏰ 90 दिन | 90 days', water_required: '💧 500 लीटर/किग्रा | 500 L/kg' };
                     } else if (formData.soil.includes('well-drained')) {
@@ -791,10 +788,10 @@
 
         // ===== Backend config & helper =====
         const API_CONFIG = {
-            baseURL: 'https://crop-sage-uj67.onrender.com', // Replace with your actual backend URL
+            baseURL: 'https://crop-sage-uj67.onrender.com', // Replace with your actual backend URL if required elsewhere
             endpoints: {
                 soilTypes: '/api/soil-types',
-                weatherData: '/api/weather',
+                weatherData: '/api/weather', // not used for Open-Meteo direct call
                 cropPrediction: '/api/predict-crop',
                 userLocation: '/api/location',
                 health: '/health'
@@ -836,17 +833,46 @@
                 return await this.makeRequest(API_CONFIG.endpoints.soilTypes);
             }
 
-            // NEW: fetch weather for lat/lon from backend weather endpoint
+            // ===== NEW: call Open-Meteo directly from frontend =====
+            // Returns { success: true, data: { temp, humidity } } or { success: false, error }
             static async getWeather(lat, lon) {
+                // Use Open-Meteo public API
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current_weather=true&hourly=relativehumidity_2m&timezone=auto`;
+
                 try {
-                    const endpointWithQuery = `${API_CONFIG.endpoints.weatherData}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-                    return await this.makeRequest(endpointWithQuery);
+                    const resp = await fetch(url);
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const data = await resp.json();
+
+                    // Extract temperature from current_weather
+                    const temp = typeof data.current_weather?.temperature === 'number' ? data.current_weather.temperature : null;
+
+                    // Best-effort find humidity:
+                    let humidity = null;
+                    if (data.hourly && Array.isArray(data.hourly.relativehumidity_2m) && Array.isArray(data.hourly.time)) {
+                        // Try to find index that matches current_weather.time if provided
+                        const currentTime = data.current_weather?.time ?? null;
+                        if (currentTime) {
+                            const idx = data.hourly.time.indexOf(currentTime);
+                            if (idx >= 0 && typeof data.hourly.relativehumidity_2m[idx] === 'number') {
+                                humidity = data.hourly.relativehumidity_2m[idx];
+                            }
+                        }
+                        // fallback: take nearest hour to now (first entry)
+                        if (humidity === null && data.hourly.relativehumidity_2m.length > 0) {
+                            humidity = data.hourly.relativehumidity_2m[0];
+                        }
+                    } else if (typeof data.relativehumidity_2m === 'number') {
+                        humidity = data.relativehumidity_2m;
+                    }
+
+                    return { success: true, data: { temp: temp ?? null, humidity: humidity ?? null, raw: data } };
                 } catch (err) {
-                    return { success: false, error: err.message || 'weather fetch failed' };
+                    console.error('Open-Meteo error:', err);
+                    return { success: false, error: err.message || String(err) };
                 }
             }
 
-            // NOTE: getWeatherData and getUserLocation removed/unused (auto-fill weather removed)
             static async predictCrop(formData) {
                 return await this.makeRequest(API_CONFIG.endpoints.cropPrediction, {
                     method: 'POST',
@@ -1348,9 +1374,7 @@
                         txt.setAttribute('text-anchor', 'middle');
                         txt.setAttribute('font-size', '8');
                         txt.setAttribute('fill', '#44566E');
-                        // number mapping: map i (0..12) to analog hour label (9..3 style)
-                        // we'll show 6 numbers evenly: 6,7.5,9,10.5,12,1.5 etc — better to show simple markers
-                        txt.textContent = ''; // leave blank to keep clean; uncomment if you want numbers
+                        txt.textContent = ''; // keep clean
                         frag.appendChild(txt);
                     }
                 }
@@ -1477,12 +1501,20 @@
             const tempEl = document.getElementById('temp');
             const humidityEl = document.getElementById('humidity');
             const sownEl = document.getElementById('sown');
+            const useLocBtn = document.getElementById('useLocationBtn');
 
             // Helper to enable manual editing (called on failure)
             function enableManualWeatherInputs() {
                 tempEl.readOnly = false;
                 humidityEl.readOnly = false;
                 sownEl.disabled = false;
+            }
+
+            // Helper to lock fields on success
+            function lockWeatherInputs() {
+                tempEl.readOnly = true;
+                humidityEl.readOnly = true;
+                sownEl.disabled = true;
             }
 
             // If geolocation not supported, keep manual
@@ -1493,7 +1525,7 @@
             }
 
             // Try to get location with a reasonable timeout
-            const geoOptions = { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 };
+            const geoOptions = { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 };
 
             const geoPromise = new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, geoOptions);
@@ -1504,50 +1536,42 @@
                 const lat = pos.coords.latitude;
                 const lon = pos.coords.longitude;
 
-                // Attempt to fetch weather from backend endpoint
+                // Attempt to fetch weather from Open-Meteo via BackendAPI.getWeather (which calls Open-Meteo)
                 try {
                     const weatherResp = await BackendAPI.getWeather(lat, lon);
                     if (weatherResp.success && weatherResp.data) {
                         const data = weatherResp.data;
-                        // Try common keys for temperature/humidity
-                        let tempVal = null;
-                        let humidityVal = null;
+                        const tempVal = (typeof data.temp === 'number') ? data.temp : null;
+                        const humidityVal = (typeof data.humidity === 'number') ? data.humidity : null;
 
-                        // Try common shapes: { temp: .., humidity: .. } or { temperature: .. } or OpenWeatherMap style { main: { temp, humidity } }
-                        if (typeof data.temp === 'number') tempVal = data.temp;
-                        if (typeof data.temperature === 'number') tempVal = tempVal === null ? data.temperature : tempVal;
-                        if (data.main && typeof data.main.temp === 'number') tempVal = tempVal === null ? data.main.temp : tempVal;
-
-                        if (typeof data.humidity === 'number') humidityVal = data.humidity;
-                        if (data.main && typeof data.main.humidity === 'number') humidityVal = humidityVal === null ? data.main.humidity : humidityVal;
-
-                        // If values are found, populate and lock inputs
                         const hasTemp = Number.isFinite(tempVal);
                         const hasHumidity = Number.isFinite(humidityVal);
 
                         if (hasTemp) {
                             tempEl.value = Math.round(tempVal * 100) / 100;
-                            tempEl.readOnly = true;
                         }
                         if (hasHumidity) {
                             humidityEl.value = Math.round(humidityVal * 100) / 100;
-                            humidityEl.readOnly = true;
                         }
 
                         // Always derive season from date (per requirement) — independent of weather
                         const derivedSeason = deriveSeasonFromDate(new Date());
-                        // set select if option exists
                         if (['kharif','rabi','zaid'].includes(derivedSeason)) {
                             sownEl.value = derivedSeason;
-                            sownEl.disabled = true;
                         }
 
-                        // If neither temp nor humidity retrieved, fallback to manual
-                        if (!hasTemp && !hasHumidity) {
+                        // If we have at least temp or humidity, lock those provided fields and notify success.
+                        if (hasTemp || hasHumidity) {
+                            // lock only the fields we filled
+                            if (hasTemp) tempEl.readOnly = true;
+                            if (hasHumidity) humidityEl.readOnly = true;
+                            // lock season select
+                            sownEl.disabled = true;
+                            showNotification('Location detected — temperature, humidity and season auto-filled', 'success');
+                        } else {
+                            // Location found but no usable weather -> manual
                             showNotification('Location found but weather unavailable — please enter temperature and humidity manually', 'warning');
                             enableManualWeatherInputs();
-                        } else {
-                            showNotification('Location detected — temperature, humidity and season auto-filled', 'success');
                         }
                         return;
                     } else {
@@ -1569,27 +1593,6 @@
                 return;
             }
         }
-        // Wire the "Use my location" button (do NOT auto-call tryAutoFillFromLocation on load)
-document.addEventListener('DOMContentLoaded', function() {
-  const useLocBtn = document.getElementById('useLocationBtn');
-  if (!useLocBtn) return;
-
-  useLocBtn.addEventListener('click', async function() {
-    useLocBtn.disabled = true;
-    const origHtml = useLocBtn.innerHTML;
-    useLocBtn.innerHTML = `<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Requesting...`;
-
-    try {
-      await tryAutoFillFromLocation();
-    } catch (err) {
-      console.error('Location button error:', err);
-      showNotification('Unable to complete location request', 'warning');
-    } finally {
-      useLocBtn.disabled = false;
-      useLocBtn.innerHTML = origHtml;
-    }
-  });
-});
 
         // ==================== end auto-fill logic ====================
 
@@ -1610,9 +1613,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification('🔄 Working in offline mode', 'info');
             }
 
-            // Try auto-fill weather/season from system location.
-            // If it fails or is denied, the fields remain editable and must be filled by user.
-            //tryAutoFillFromLocation();
+            // Wire the "Use my location" button (do NOT auto-call tryAutoFillFromLocation on load)
+            const useLocBtn = document.getElementById('useLocationBtn');
+            if (useLocBtn) {
+              useLocBtn.addEventListener('click', async function() {
+                useLocBtn.disabled = true;
+                const origHtml = useLocBtn.innerHTML;
+                useLocBtn.innerHTML = `<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Requesting...`;
+
+                try {
+                  await tryAutoFillFromLocation();
+                } catch (err) {
+                  console.error('Location button error:', err);
+                  showNotification('Unable to complete location request', 'warning');
+                } finally {
+                  useLocBtn.disabled = false;
+                  useLocBtn.innerHTML = origHtml;
+                }
+              });
+            }
         }
 
         document.addEventListener('DOMContentLoaded', initializeApp);
