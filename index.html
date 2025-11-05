@@ -1,1288 +1,695 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>किसान मित्र - Crop Predictor | कृषि सलाहकार</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        /* (original CSS preserved exactly as provided by you, with only unused NPK/clock classes left harmless) */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>किसान मित्र - Crop Predictor</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#667eea; --bg2:#764ba2;
+    --card-shadow:0 12px 30px rgba(0,0,0,0.09);
+    --muted:#666;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; min-height:100vh;
+       padding:18px; background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%); color:#1f2d3d;}
+  .container{max-width:1200px;margin:0 auto}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;color:white; margin-bottom:18px}
+  .brand{font-weight:800}
+  .lang-toggle{background:rgba(255,255,255,0.12);padding:8px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.18);cursor:pointer;color:white;display:inline-flex;align-items:center;gap:8px}
+  /* pages */
+  .page{display:none}
+  .page.active{display:block}
+  /* input center card */
+  .center-card{max-width:820px;margin:18px auto;background:linear-gradient(145deg,#fff,#f7f9ff);padding:24px;border-radius:14px;box-shadow:var(--card-shadow)}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:900px){ .grid-2{grid-template-columns:1fr} }
+  label{display:block;font-weight:700;margin-bottom:6px;color:#283344}
+  .form-control{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e6eaf6;background:white}
+  .radio-row{display:flex;gap:12px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
+  .btn-primary{background:linear-gradient(45deg,#ff6b6b,#ee5a24);color:white}
+  .btn-ghost{background:transparent;border:1px solid rgba(0,0,0,0.06)}
+  .note{font-size:0.9rem;color:var(--muted);margin-top:6px}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+  /* output layout */
+  .output-wrap{display:grid;grid-template-columns:320px 1fr;gap:16px}
+  @media(max-width:980px){ .output-wrap{grid-template-columns:1fr} }
+  .left-panel{background:linear-gradient(180deg,#fff,#fbfdff);padding:14px;border-radius:12px;box-shadow:var(--card-shadow)}
+  .right-panel{background:linear-gradient(180deg,#fff,#fbfdff);padding:14px;border-radius:12px;box-shadow:var(--card-shadow)}
+  .crop-list{display:flex;flex-direction:column;gap:8px}
+  .crop-row{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:8px;border:1px solid #eef2fb;background:#fff;cursor:pointer}
+  .crop-row .left{display:flex;gap:8px;align-items:center}
+  .crop-row .chev{transition:transform .18s ease}
+  .expanded-panel{overflow:hidden;transition:max-height .28s ease,opacity .22s ease;padding:8px 10px;margin-top:8px;border-radius:8px;background:#fbfdff;border:1px solid #eef4ff}
+  .expanded-panel.hidden{max-height:0;opacity:0;padding-top:0;padding-bottom:0}
+  .expanded-panel.visible{max-height:800px;opacity:1}
+  .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:900px){ .card-grid{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:520px){ .card-grid{grid-template-columns:1fr} }
+  /* input-status card (right column) */
+  .input-card{background:white;border-radius:10px;padding:12px;border-left:6px solid #e9eefb;box-shadow:0 6px 18px rgba(0,0,0,0.04)}
+  .input-card h4{margin-bottom:8px;font-size:0.98rem;display:flex;align-items:center;gap:8px}
+  .gauge-wrap{display:flex;align-items:center;gap:12px}
+  .gauge-svg{width:120px;height:120px;flex-shrink:0}
+  .gauge-meta{text-align:left}
+  .status-label{font-weight:800;margin-top:6px}
+  .status-good{color:#2e7d32} /* green */
+  .status-caution{color:#f57c00} /* orange */
+  .status-bad{color:#c62828} /* red */
+  .status-missing{color:#6d6d6d} /* gray */
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+  /* radial gauge segments: we render using SVG arcs; needle is rotated */
+  /* small helpers */
+  .muted{color:var(--muted);font-size:0.92rem}
+  .back-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .back-btn{background:transparent;border:1px solid rgba(0,0,0,0.06);padding:8px 12px;border-radius:8px;cursor:pointer}
+  .small{font-size:0.92rem;color:var(--muted)}
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            color: white;
-            position: relative;
-        }
+  /* animations */
+  .fade-in{animation:fadeIn .28s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
+  /* Expand arrow rotation when active */
+  .chev-open{transform:rotate(180deg)}
 
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-        }
-
-        .language-toggle {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 25px;
-            padding: 10px 20px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .language-toggle:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .main-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0;
-            min-height: 600px;
-        }
-
-        .input-section {
-            padding: 40px;
-            background: linear-gradient(145deg, #f8f9ff, #e8ecff);
-            border-right: 1px solid #e0e0e0;
-        }
-
-        .output-section {
-            padding: 40px;
-            background: linear-gradient(145deg, #fff8f0, #f0f8ff);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #333;
-            font-size: 1.1rem;
-        }
-
-        .bilingual {
-            color: #666;
-            font-size: 0.9rem;
-            font-weight: normal;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: white;
-        }
-
-        .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-            outline: none;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .predict-btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.2rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .predict-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
-        }
-
-        .predict-btn:active {
-            transform: translateY(0);
-        }
-        .location-btn {
-            display: inline-flex;
-            align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  font-size: 0.95rem;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  background: linear-gradient(45deg, #43a047, #388e3c);
-  color: white;
-  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.location-btn:active { transform: translateY(1px); }
-.location-btn[disabled] { opacity: 0.65; cursor: not-allowed; transform: none; }
-
-
-        .results-container {
-            text-align: center;
-            width: 100%;
-        }
-
-        .result-card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            border-left: 5px solid #4CAF50;
-            animation: slideIn 0.5s ease;
-        }
-
-        .result-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .result-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #4CAF50;
-            margin-bottom: 5px;
-        }
-
-        .result-subtitle {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .empty-state {
-            opacity: 0.7;
-        }
-
-        .empty-state i {
-            font-size: 4rem;
-            color: #ddd;
-            margin-bottom: 20px;
-        }
-
-        .empty-state p {
-            color: #999;
-            font-size: 1.1rem;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 40px;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @media (max-width: 768px) {
-            .main-card {
-                grid-template-columns: 1fr;
-                gap: 0;
-            }
-            
-            .form-row {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-
-            .header h1 {
-                font-size: 2rem;
-            }
-
-            .input-section, .output-section {
-                padding: 25px;
-            }
-
-            .language-toggle {
-                position: static;
-                margin-bottom: 20px;
-                display: inline-flex;
-            }
-        }
-
-        .info-tooltip {
-            position: relative;
-            display: inline-block;
-            margin-left: 5px;
-            color: #667eea;
-            cursor: help;
-        }
-
-        .tooltip-text {
-            visibility: hidden;
-            width: 200px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 10px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -100px;
-            font-size: 0.8rem;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .info-tooltip:hover .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        /* small helpers */
-        .gauge-wrapper { display: none; } /* kept hidden, we are not using the analog gauge anymore */
-        .probability-card {
-            margin-top: 10px;
-        }
-
-        /* NPK related classes left but no longer used in markup */
-        .npk-gauges { display: none; }
-
-        .input-summary {
-            text-align: left;
-            font-family: inherit;
-            font-size: 1rem;
-            line-height: 1.6;
-            white-space: pre-line;
-        }
-    </style>
+  /* accessibility focus */
+  button:focus, .crop-row:focus{outline:3px solid rgba(102,126,234,0.14);outline-offset:2px}
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="language-toggle" id="languageToggle" role="button" aria-pressed="false" tabindex="0">
-                <i class="fas fa-language" aria-hidden="true"></i>
-                <span id="langText">हिंदी</span>
-            </div>
-            <h1><i class="fas fa-seedling"></i> <span id="mainTitle">किसान मित्र - Crop Predictor</span></h1>
-            <p id="subtitle">आपकी फसल की भविष्यवाणी करने वाला स्मार्ट सलाहकार</p>
-        </div>
-
-        <div class="main-card">
-            <div class="input-section">
-                <h2 style="margin-bottom: 25px; color: #333; text-align: center;">
-                    <i class="fas fa-edit"></i> <span id="formTitle">फसल की जानकारी दें</span>
-                </h2>
-            <!-- Use my location button -->
-<div style="text-align:center; margin-bottom: 18px;">
-  <button type="button" id="useLocationBtn" class="location-btn" title="Auto-fill temperature, humidity and season from your location">
-    <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
-    <span id="useLocationBtnText">Use my location</span>
-  </button>
-</div>
-
-                
-                <form id="cropForm">
-                    <div class="form-group">
-                        <label for="soil" id="soilLabel">
-                            मिट्टी का प्रकार
-                            <i class="fas fa-info-circle info-tooltip">
-                                <span class="tooltip-text" id="soilTooltip">अपने खेत की मिट्टी का प्रकार चुनें</span>
-                            </i>
-                        </label>
-                        <select class="form-control" id="soil" required aria-required="true">
-                            <option value="" id="soilPlaceholder" disabled selected>मिट्टी चुनें</option>
-                            <!-- Long list kept as fallback; can be replaced by backend options -->
-                            <option value="alluvial">जलोढ़ मिट्टी | Alluvial Soil</option>
-                            <option value="loamy">दोमट मिट्टी | Loamy Soil</option>
-                            <option value="clay">चिकनी मिट्टी | Clay Soil</option>
-                            <option value="well-drained">अच्छी जल निकासी वाली मिट्टी | Well-drained Soil</option>
-                            <option value="red">लाल मिट्टी | Red Soil</option>
-                            <option value="clay-loamy">चिकनी दोमट मिट्टी | Clay Loamy Soil</option>
-                            <option value="sandy-loamy">रेतीली दोमट मिट्टी | Sandy Loamy Soil</option>
-                            <option value="black">काली मिट्टी | Black Soil</option>
-                            <option value="sandy">रेतीली मिट्टी | Sandy Soil</option>
-                            <option value="shallow-black">उथली काली मिट्टी | Shallow Black Soil</option>
-                            <option value="black-cotton">काली कपास मिट्टी | Black Cotton Soil</option>
-                            <option value="cotton">कपास मिट्टी | Cotton Soil</option>
-                            <option value="medium-black">मध्यम काली मिट्टी | Medium Black Soil</option>
-                            <option value="heavy-black">भारी काली मिट्टी | Heavy Black Soil</option>
-                            <option value="light">हल्की मिट्टी | Light Soil</option>
-                            <option value="heavy">भारी मिट्टी | Heavy Soil</option>
-                            <option value="deep">गहरी मिट्टी | Deep Soil</option>
-                            <option value="sandy-clay-loamy">रेतीली चिकनी दोमट मिट्टी | Sandy Clay Loamy Soil</option>
-                            <option value="silty-loamy">मुलायम दोमट मिट्टी | Silty Loamy Soil</option>
-                            <option value="salty-clay-loamy">नमकीन चिकनी दोमट मिट्टी | Salty Clay Loamy Soil</option>
-                            <option value="red-loamy">लाल दोमट मिट्टी | Red Loamy Soil</option>
-                            <option value="brown-loamy">भूरी दोमट मिट्टी | Brown Loamy Soil</option>
-                            <option value="laterite">लेटराइट मिट्टी | Laterite Soil</option>
-                            <option value="well-drained-loamy">अच्छी जल निकासी वाली दोमट मिट्टी | Well-drained Loamy Soil</option>
-                            <option value="light-loamy">हल्की दोमट मिट्टी | Light Loamy Soil</option>
-                            <option value="friable">भुरभुरी मिट्टी | Friable Soil</option>
-                            <option value="well-grained-deep-loamy-moist">अच्छी दानेदार गहरी दोमट नम मिट्टी | Well-grained Deep Loamy Moist Soil</option>
-                            <option value="red-lateritic-loamy">लाल लेटराइट दोमट मिट्टी | Red Lateritic Loamy Soil</option>
-                            <option value="rich-red-loamy">समृद्ध लाल दोमट मिट्टी | Rich Red Loamy Soil</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="sown" id="seasonLabel">
-                            बुवाई का मौसम
-                            <i class="fas fa-info-circle info-tooltip">
-                                <span class="tooltip-text" id="seasonTooltip">आप कब बुवाई करना चाहते हैं?</span>
-                            </i>
-                        </label>
-                        <select class="form-control" id="sown" required aria-required="true">
-                            <option value="" id="seasonPlaceholder" disabled selected>मौसम चुनें</option>
-                            <option value="kharif">खरीफ | Kharif (मानसून)</option>
-                            <option value="rabi">रबी | Rabi (सर्दी)</option>
-                            <option value="zaid">जायद | Zaid (गर्मी)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="soil_ph" id="phLabel">
-                            मिट्टी का pH
-                            <span class="bilingual"></span>
-                        </label>
-                        <!-- removed min/max to allow any float; step="any" allows floats -->
-                        <input type="number" class="form-control" id="soil_ph" step="any" placeholder="e.g-7.0" required aria-required="true">
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="temp" id="tempLabel">
-                                तापमान
-                                <span class="bilingual">(°C)</span>
-                            </label>
-                            <input type="number" class="form-control" id="temp" step="any" placeholder="e.g-25" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="humidity" id="humidityLabel">
-                                आर्द्रता
-                                <span class="bilingual">(%)</span>
-                            </label>
-                            <input type="number" class="form-control" id="humidity" step="any" placeholder="e.g-60" required>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="nitrogen" id="nitrogenLabel">
-                                नाइट्रोजन (N)
-                                <span class="bilingual">(kg/ha)</span>
-                            </label>
-                            <input type="number" class="form-control" id="nitrogen" step="any" placeholder="e.g-50" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="phosphorus" id="phosphorusLabel">
-                                फास्फोरस (P)
-                                <span class="bilingual">(kg/ha)</span>
-                            </label>
-                            <input type="number" class="form-control" id="phosphorus" step="any" placeholder="e.g-25" required>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="potassium" id="potassiumLabel">
-                            पोटैशियम (K)
-                            <span class="bilingual">(kg/ha)</span>
-                        </label>
-                        <input type="number" class="form-control" id="potassium" step="any" placeholder="e.g-30" required>
-                    </div>
-
-                    <button type="submit" id="predictBtnEl" class="predict-btn">
-                        <i class="fas fa-magic"></i> <span id="predictBtn">फसल की भविष्यवाणी करें</span>
-                    </button>
-                </form>
-            </div>
-
-            <div class="output-section">
-                <!-- Removed semicircular analog meter (clock) per request -->
-                <div id="resultsContainer" class="results-container">
-                    <div class="empty-state">
-                        <i class="fas fa-seedling" aria-hidden="true"></i>
-                        <p id="emptyStateText">कृपया विवरण भरें<br><span class="bilingual">Please fill the details to get crop predictions</span></p>
-                    </div>
-                </div>
-
-                <div id="loadingState" class="loading" aria-hidden="true">
-                    <div class="spinner" role="status" aria-label="loading"></div>
-                    <p id="loadingText">भविष्यवाणी हो रही है...<br><span class="bilingual">Analyzing your data...</span></p>
-                </div>
-            </div>
-        </div>
+  <div class="container">
+    <div class="topbar">
+      <div style="display:flex;gap:14px;align-items:center">
+        <div class="brand"><i class="fas fa-seedling"></i> <span id="brandTitle">किसान मित्र</span></div>
+        <div class="small" id="subtitleText">Your smart crop advisor</div>
+      </div>
+      <div>
+        <button id="langToggleTop" class="lang-toggle" aria-pressed="false"><i class="fas fa-language"></i> <span id="langLabelTop">हिंदी</span></button>
+      </div>
     </div>
 
-    <script>
-        // Language system (unchanged)
-        let currentLang = 'hi';
-        
-        const translations = {
-            hi: {
-                langText: "English",
-                mainTitle: "किसान मित्र - Crop Predictor",
-                subtitle: "आपकी फसल की भविष्यवाणी करने वाला स्मार्ट सलाहकार",
-                formTitle: "फसल की जानकारी दें",
-                soilLabel: "मिट्टी का प्रकार",
-                soilTooltip: "अपने खेत की मिट्टी का प्रकार चुनें",
-                soilPlaceholder: "मिट्टी चुनें",
-                seasonLabel: "बुवाई का मौसम",
-                seasonTooltip: "आप कब बुवाई करना चाहते हैं?",
-                seasonPlaceholder: "मौसम चुनें",
-                phLabel: "मिट्टी का pH",
-                tempLabel: "तापमान",
-                humidityLabel: "आर्द्रता",
-                nitrogenLabel: "नाइट्रोजन (N)",
-                phosphorusLabel: "फास्फोरस (P)",
-                potassiumLabel: "पोटैशियम (K)",
-                predictBtn: "फसल की भविष्यवाणी करें",
-                emptyStateText: "कृपया विवरण भरें<br><span class=\"bilingual\">Please fill the details to get crop predictions</span>",
-                loadingText: "भविष्यवाणी हो रही है...<br><span class=\"bilingual\">Analyzing your data...</span>",
-                recommendedCrop: "सुझावित फसल",
-                waterSource: "पानी का स्रोत",
-                cropDuration: "फसल की अवधि",
-                waterRequired: "पानी की आवश्यकता",
-                bestSuited: "आपकी मिट्टी के अनुकूल",
-                optimalIrrigation: "बेहतर सिंचाई के लिए",
-                sowingToHarvest: "बुवाई से कटाई तक",
-                perKgProduction: "प्रति किलो उत्पादन",
-                probabilitySection: "Probability of Growing",
-                inputSummary: "Input Summary"
-            },
-            en: {
-                langText: "हिंदी",
-                mainTitle: "Farmer Friend - Crop Predictor",
-                subtitle: "Your Smart Agricultural Advisor for Crop Prediction",
-                formTitle: "Enter Crop Details",
-                soilLabel: "Soil Type",
-                soilTooltip: "Select the type of soil in your field",
-                soilPlaceholder: "Select Soil",
-                seasonLabel: "Sowing Season",
-                seasonTooltip: "When are you planning to sow?",
-                seasonPlaceholder: "Select Season",
-                phLabel: "Soil pH",
-                tempLabel: "Temperature",
-                humidityLabel: "Humidity",
-                nitrogenLabel: "Nitrogen (N)",
-                phosphorusLabel: "Phosphorus (P)",
-                potassiumLabel: "Potassium (K)",
-                predictBtn: "Predict Crop",
-                emptyStateText: "Please fill the details to get crop predictions",
-                loadingText: "Analyzing your data...",
-                recommendedCrop: "Recommended Crop",
-                waterSource: "Water Source",
-                cropDuration: "Crop Duration",
-                waterRequired: "Water Required",
-                bestSuited: "Best suited for your soil",
-                optimalIrrigation: "For optimal irrigation",
-                sowingToHarvest: "From sowing to harvest",
-                perKgProduction: "Per kg of production",
-                probabilitySection: "Probability of Growing",
-                inputSummary: "Input Summary"
-            }
-        };
-
-        function updateLanguage() {
-            const lang = currentLang;
-
-            document.getElementById('langText').textContent = translations[lang].langText;
-            document.getElementById('mainTitle').textContent = translations[lang].mainTitle;
-            document.getElementById('subtitle').textContent = translations[lang].subtitle;
-            document.getElementById('formTitle').textContent = translations[lang].formTitle;
-
-            // Update labels & tooltips
-            document.getElementById('soilLabel').innerHTML = translations[lang].soilLabel + `\n                <i class="fas fa-info-circle info-tooltip">\n                    <span class="tooltip-text">${translations[lang].soilTooltip}</span>\n                </i>`;
-
-            const soilPlaceholder = document.getElementById('soilPlaceholder');
-            if (soilPlaceholder) soilPlaceholder.textContent = translations[lang].soilPlaceholder;
-
-            document.getElementById('seasonLabel').innerHTML = translations[lang].seasonLabel + `\n                <i class="fas fa-info-circle info-tooltip">\n                    <span class="tooltip-text">${translations[lang].seasonTooltip}</span>\n                </i>`;
-
-            const seasonPlaceholder = document.getElementById('seasonPlaceholder');
-            if (seasonPlaceholder) seasonPlaceholder.textContent = translations[lang].seasonPlaceholder;
-
-            document.getElementById('phLabel').innerHTML = translations[lang].phLabel + '<span class="bilingual"></span>';
-            document.getElementById('tempLabel').innerHTML = translations[lang].tempLabel + '<span class="bilingual">(°C)</span>';
-            document.getElementById('humidityLabel').innerHTML = translations[lang].humidityLabel + '<span class="bilingual">(%)</span>';
-            document.getElementById('nitrogenLabel').innerHTML = translations[lang].nitrogenLabel + '<span class="bilingual">(kg/ha)</span>';
-            document.getElementById('phosphorusLabel').innerHTML = translations[lang].phosphorusLabel + '<span class="bilingual">(kg/ha)</span>';
-            document.getElementById('potassiumLabel').innerHTML = translations[lang].potassiumLabel + '<span class="bilingual">(kg/ha)</span>';
-
-            document.getElementById('predictBtn').textContent = translations[lang].predictBtn;
-            document.getElementById('emptyStateText').innerHTML = translations[lang].emptyStateText;
-            document.getElementById('loadingText').innerHTML = translations[lang].loadingText;
-        }
-
-        document.getElementById('languageToggle').addEventListener('click', function() {
-            currentLang = currentLang === 'hi' ? 'en' : 'hi';
-            this.setAttribute('aria-pressed', currentLang === 'en');
-            updateLanguage();
-        });
-
-        // Sample data and simulateMLPrediction left unchanged for crop suggestions
-        const cropDatabase = {
-            'alluvial_kharif_high_ph': {
-                crop: '🌾 धान | Rice',
-                water_source: '🏞️ नदी | River',
-                duration: '⏰ 120 दिन | 120 days',
-                water_required: '💧 1200 लीटर/किग्रा | 1200 L/kg'
-            },
-            'loamy_rabi_neutral_ph': {
-                crop: '🌾 गेहूं | Wheat',
-                water_source: '🕳️ कुआं | Borewell',
-                duration: '⏰ 110 दिन | 110 days',
-                water_required: '💧 800 लीटर/किग्रा | 800 L/kg'
-            },
-            'sandy_zaid_neutral_ph': {
-                crop: '🌽 मक्का | Maize',
-                water_source: '💦 ड्रिप सिंचाई | Drip Irrigation',
-                duration: '⏰ 95 दिन | 95 days',
-                water_required: '💧 600 लीटर/किग्रा | 600 L/kg'
-            },
-            'black_kharif_high_ph': {
-                crop: '🌸 कपास | Cotton',
-                water_source: '🌧️ बारिश | Rainwater',
-                duration: '⏰ 180 दिन | 180 days',
-                water_required: '💧 1800 लीटर/किग्रा | 1800 L/kg'
-            },
-            'red_rabi_low_ph': {
-                crop: '🫘 दाल | Pulses',
-                water_source: '🏊 तालाब | Pond',
-                duration: '⏰ 85 दिन | 85 days',
-                water_required: '💧 400 लीटर/किग्रा | 400 L/kg'
-            }
-        };
-
-        function getPredictionKey(soil, sown, ph) {
-            let phCategory = ph < 6.5 ? 'low_ph' : ph > 7.5 ? 'high_ph' : 'neutral_ph';
-            return `${soil}_${sown}_${phCategory}`;
-        }
-
-        function simulateMLPrediction(formData) {
-            const key = getPredictionKey(formData.soil, formData.sown, formData.soil_ph);
-            let prediction = cropDatabase[key];
-
-            if (!prediction) {
-                if (formData.sown === 'kharif') {
-                    if (formData.soil.includes('black') || formData.soil.includes('cotton')) {
-                        prediction = { crop: '🌸 कपास | Cotton', water_source: '🌧️ बारिश | Rainwater', duration: '⏰ 180 दिन | 180 days', water_required: '💧 1800 लीटर/किग्रा | 1800 L/kg' };
-                    } else if (formData.soil.includes('alluvial') || formData.soil.includes('clay')) {
-                        prediction = { crop: '🌾 धान | Rice', water_source: '🏞️ नदी | River', duration: '⏰ 120 दिन | 120 days', water_required: '💧 1200 लीटर/किग्रा | 1200 L/kg' };
-                    } else if (formData.soil.includes('red')) {
-                        prediction = { crop: '🌽 ज्वार | Sorghum', water_source: '🌧️ बारिश | Rainwater', duration: '⏰ 110 दिन | 110 days', water_required: '💧 650 लीटर/किग्रा | 650 L/kg' };
-                    } else {
-                        prediction = { crop: '🌿 बाजरा | Pearl Millet', water_source: '🌧️ बारिश | Rainwater', duration: '⏰ 90 दिन | 90 days', water_required: '💧 500 लीटर/किग्रा | 500 L/kg' };
-                    }
-                } else if (formData.sown === 'rabi') {
-                    if (formData.soil.includes('loamy') || formData.soil.includes('alluvial')) {
-                        prediction = { crop: '🌾 गेहूं | Wheat', water_source: '🕳️ कुआं | Borewell', duration: '⏰ 110 दिन | 110 days', water_required: '💧 800 लीटर/किग्रा | 800 L/kg' };
-                    } else if (formData.soil.includes('red') || formData.soil.includes('laterite')) {
-                        prediction = { crop: '🫘 दाल | Pulses', water_source: '🏊 तालाब | Pond', duration: '⏰ 85 दिन | 85 days', water_required: '💧 400 लीटर/किग्रा | 400 L/kg' };
-                    } else if (formData.soil.includes('black')) {
-                        prediction = { crop: '🌰 चना | Chickpea', water_source: '💦 ड्रिप सिंचाई | Drip Irrigation', duration: '⏰ 100 दिन | 100 days', water_required: '💧 350 लीटर/किग्रा | 350 L/kg' };
-                    } else {
-                        prediction = { crop: '🌾 जौ | Barley', water_source: '💦 ड्रिप सिंचाई | Drip Irrigation', duration: '⏰ 95 दिन | 95 days', water_required: '💧 550 लीटर/किग्रा | 550 L/kg' };
-                    }
-                } else { // zaid
-                    if (formData.soil.includes('sandy')) {
-                        prediction = { crop: '🌽 मक्का | Maize', water_source: '💦 ड्रिप सिंचाई | Drip Irrigation', duration: '⏰ 95 दिन | 95 days', water_required: '💧 600 लीटर/किग्रा | 600 L/kg' };
-                    } else if (formData.soil.includes('loamy')) {
-                        prediction = { crop: '🥔 आलू | Potato', water_source: '🚰 ट्यूबवेल | Tubewell', duration: '⏰ 90 दिन | 90 days', water_required: '💧 500 लीटर/किग्रा | 500 L/kg' };
-                    } else if (formData.soil.includes('well-drained')) {
-                        prediction = { crop: '🌻 सूरजमुखी | Sunflower', water_source: '💧 स्प्रिंकलर | Sprinkler', duration: '⏰ 100 दिन | 100 days', water_required: '💧 700 लीटर/किग्रा | 700 L/kg' };
-                    } else {
-                        prediction = { crop: '🥒 खीरा | Cucumber', water_source: '💦 ड्रिप सिंचाई | Drip Irrigation', duration: '⏰ 60 दिन | 60 days', water_required: '💧 400 लीटर/किग्रा | 400 L/kg' };
-                    }
-                }
-            }
-
-            return prediction;
-        }
-
-        // ===== Backend config & helper =====
-        const API_CONFIG = {
-            baseURL: 'https://crop-sage-uj67.onrender.com',
-            endpoints: {
-                soilTypes: '/api/soil-types',
-                weatherData: '/api/weather',
-                cropPrediction: '/api/predict-crop',
-                userLocation: '/api/location',
-                health: '/health'
-            }
-        };
-
-        class BackendAPI {
-            static async makeRequest(endpoint, options = {}) {
-                const url = `${API_CONFIG.baseURL}${endpoint}`;
-                const defaultOptions = {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    }
-                };
-
-                try {
-                    const response = await fetch(url, { ...defaultOptions, ...options });
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const text = await response.text();
-                    const data = text ? JSON.parse(text) : {};
-                    return { success: true, data };
-                } catch (error) {
-                    console.error('API Error:', error);
-                    return { success: false, error: error.message };
-                }
-            }
-
-            static async checkHealth() {
-                return await this.makeRequest(API_CONFIG.endpoints.health);
-            }
-
-            static async getSoilTypes() {
-                return await this.makeRequest(API_CONFIG.endpoints.soilTypes);
-            }
-
-            // ===== UPDATED: call Open-Meteo directly and sanitize humidity =====
-            static async getWeather(lat, lon) {
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current_weather=true&hourly=relativehumidity_2m&timezone=auto`;
-
-                try {
-                    const resp = await fetch(url);
-                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                    const data = await resp.json();
-
-                    const temp = typeof data.current_weather?.temperature === 'number' ? data.current_weather.temperature : null;
-
-                    let humidity = null;
-                    if (data.hourly && Array.isArray(data.hourly.relativehumidity_2m) && Array.isArray(data.hourly.time)) {
-                        const currentTime = data.current_weather?.time ?? null;
-                        if (currentTime) {
-                            const idx = data.hourly.time.indexOf(currentTime);
-                            if (idx >= 0 && typeof data.hourly.relativehumidity_2m[idx] === 'number') {
-                                humidity = data.hourly.relativehumidity_2m[idx];
-                            }
-                        }
-                        if (humidity === null && data.hourly.relativehumidity_2m.length > 0) {
-                            humidity = data.hourly.relativehumidity_2m[0];
-                        }
-                    } else if (typeof data.relativehumidity_2m === 'number') {
-                        humidity = data.relativehumidity_2m;
-                    }
-
-                    // Sanitize humidity: only accept 0..100
-                    if (typeof humidity !== 'number' || !isFinite(humidity) || humidity < 0 || humidity > 100) {
-                        humidity = null;
-                    }
-
-                    return { success: true, data: { temp: temp ?? null, humidity: humidity ?? null, raw: data } };
-                } catch (err) {
-                    console.error('Open-Meteo error:', err);
-                    return { success: false, error: err.message || String(err) };
-                }
-            }
-
-            static async predictCrop(formData) {
-                return await this.makeRequest(API_CONFIG.endpoints.cropPrediction, {
-                    method: 'POST',
-                    body: JSON.stringify(formData)
-                });
-            }
-        }
-
-        // ===== UI helpers =====
-        function setLoading(isLoading) {
-            const results = document.getElementById('resultsContainer');
-            const loading = document.getElementById('loadingState');
-            const submitBtn = document.getElementById('predictBtnEl');
-
-            if (isLoading) {
-                results.style.display = 'none';
-                loading.style.display = 'block';
-                loading.setAttribute('aria-hidden', 'false');
-                submitBtn.disabled = true;
-                submitBtn.style.opacity = '0.7';
-                submitBtn.style.cursor = 'not-allowed';
-            } else {
-                loading.style.display = 'none';
-                loading.setAttribute('aria-hidden', 'true');
-                submitBtn.disabled = false;
-                submitBtn.style.opacity = '1';
-                submitBtn.style.cursor = 'pointer';
-                results.style.display = 'block';
-            }
-        }
-
-        // Build textual input summary & NPK textual status instead of gauges
-        function inputStatusText(formData, predictedCrop) {
-            // helper: for NPK decide Low / Near ideal / High relative to ideal ranges
-            function getIdealNPK(cropName) {
-                const name = (cropName || '').toLowerCase();
-                const defaultRange = { N: {min: 20, max: 80}, P: {min: 10, max: 40}, K: {min: 20, max: 80} };
-                const map = [
-                    { keywords: ['rice', 'धान'], ranges: { N: {min: 60, max: 140}, P: {min: 20, max: 60}, K: {min: 40, max: 120} } },
-                    { keywords: ['wheat', 'गेहूँ', 'गेहू'], ranges: { N: {min: 80, max: 160}, P: {min: 30, max: 70}, K: {min: 30, max: 80} } },
-                    { keywords: ['maize', 'मक्का', 'corn'], ranges: { N: {min: 80, max: 200}, P: {min: 30, max: 80}, K: {min: 40, max: 120} } },
-                    { keywords: ['cotton', 'कपास'], ranges: { N: {min: 60, max: 120}, P: {min: 30, max: 60}, K: {min: 40, max: 120} } },
-                    { keywords: ['pulses', 'दाल', 'lentil', 'chickpea', 'चना'], ranges: { N: {min: 10, max: 40}, P: {min: 20, max: 50}, K: {min: 20, max: 60} } }
-                ];
-                for (const item of map) {
-                    for (const kw of item.keywords) {
-                        if (name.includes(kw)) return item.ranges;
-                    }
-                }
-                return defaultRange;
-            }
-
-            function statusForNPK(value, idealRange) {
-                if (!Number.isFinite(value)) return 'Not provided';
-                if (value < idealRange.min) return 'Low';
-                if (value > idealRange.max) return 'High';
-                return 'Near ideal';
-            }
-
-            const ideal = getIdealNPK(predictedCrop || '');
-            const nStatus = statusForNPK(formData.nitrogen, ideal.N);
-            const pStatus = statusForNPK(formData.phosphorus, ideal.P);
-            const kStatus = statusForNPK(formData.potassium, ideal.K);
-
-            // pH, temp, humidity textual check
-            function checkPH(v) {
-                if (!Number.isFinite(v)) return 'Not provided';
-                if (v < 4.5 || v > 9.0) return `Out of typical range (${v})`;
-                if (v < 6.5) return `Acidic (${v})`;
-                if (v > 7.5) return `Alkaline (${v})`;
-                return `Neutral (${v})`;
-            }
-            function checkTemp(v) {
-                if (!Number.isFinite(v)) return 'Not provided';
-                if (v < -10 || v > 50) return `Out of typical range (${v}°C)`;
-                return `${v}°C`;
-            }
-            function checkHumidity(v) {
-                if (!Number.isFinite(v)) return 'Not provided';
-                if (v < 0 || v > 100) return `Out of range (${v}%)`;
-                if (v < 30) return `${v}% (Low)`;
-                if (v <= 70) return `${v}% (Good)`;
-                return `${v}% (High)`;
-            }
-
-            const phText = checkPH(formData.soil_ph);
-            const tempText = checkTemp(formData.temp);
-            const humText = checkHumidity(formData.humidity);
-
-            // Compose a short multi-line textual summary (user requested format like "N: High\nP: Low\n...")
-            const lines = [
-                `N: ${nStatus}`,
-                `P: ${pStatus}`,
-                `K: ${kStatus}`,
-                `pH: ${phText}`,
-                `Temp: ${tempText}`,
-                `Humidity: ${humText}`
-            ];
-            return lines.join('\n');
-        }
-
-        function displayResults(prediction, inputCompletenessScore = null, derivedProbability = null, npkValues = null) {
-            const lang = currentLang;
-
-            let html = `
-                <div class="result-card">
-                    <div class="result-title">
-                        <i class="fas fa-seedling"></i>
-                        ${translations[lang].recommendedCrop}
-                    </div>
-                    <div class="result-value">${prediction.crop}</div>
-                    <div class="result-subtitle">${translations[lang].bestSuited}</div>
-                </div>
-                
-                <div class="result-card">
-                    <div class="result-title">
-                        <i class="fas fa-tint"></i>
-                        ${translations[lang].waterSource}
-                    </div>
-                    <div class="result-value">${prediction.water_source}</div>
-                    <div class="result-subtitle">${translations[lang].optimalIrrigation}</div>
-                </div>
-                
-                <div class="result-card">
-                    <div class="result-title">
-                        <i class="fas fa-calendar-alt"></i>
-                        ${translations[lang].cropDuration}
-                    </div>
-                    <div class="result-value">${prediction.duration}</div>
-                    <div class="result-subtitle">${translations[lang].sowingToHarvest}</div>
-                </div>
-                
-                <div class="result-card">
-                    <div class="result-title">
-                        <i class="fas fa-water"></i>
-                        ${translations[lang].waterRequired}
-                    </div>
-                    <div class="result-value">${prediction.water_required}</div>
-                    <div class="result-subtitle">${translations[lang].perKgProduction}</div>
-                </div>
-            `;
-
-            if (inputCompletenessScore === null) inputCompletenessScore = 0;
-
-            // Use prediction.confidence if provided; else use derivedProbability
-            const probabilityPercent = (typeof prediction.confidence === 'number') ? Math.round(prediction.confidence * 100) : (derivedProbability !== null ? Math.round(derivedProbability) : null);
-
-            // Input Summary (textual) — replaced visual gauge
-            html += `
-                <div class="result-card" style="border-left-color: #9C27B0;">
-                    <div class="result-title">
-                        <i class="fas fa-list"></i>
-                        ${translations[lang].inputSummary || 'Input Summary'}
-                    </div>
-                    <div class="result-subtitle input-summary" id="inputSummaryText">Loading...</div>
-                    <div style="margin-top:10px; color:#666; font-size:0.95rem;">Completeness: ${inputCompletenessScore}%</div>
-                </div>
-            `;
-
-            // Probability of Growing section (now uses computed probabilityPercent)
-            html += `
-                <div class="result-card probability-card" style="border-left-color: #3F51B5;">
-                    <div class="result-title">
-                        <i class="fas fa-percentage"></i>
-                        ${translations[lang].probabilitySection}
-                    </div>
-                    <div class="result-value" id="probValue">${probabilityPercent !== null ? probabilityPercent + '%' : '—'}</div>
-                    <div class="result-subtitle" id="probSubtitle">${probabilityPercent !== null ? (probabilityPercent >= 70 ? 'High likelihood' : (probabilityPercent >= 40 ? 'Moderate likelihood' : 'Low likelihood')) : 'Probability not available'}</div>
-                </div>
-            `;
-
-            // If prediction.confidence exists, show it explicitly
-            if (typeof prediction.confidence === 'number') {
-                html += `
-                <div class="result-card" style="border-left-color: #2196F3;">
-                    <div class="result-title">
-                        <i class="fas fa-chart-line"></i>
-                        Prediction Confidence
-                    </div>
-                    <div class="result-value">${Math.round(prediction.confidence * 100)}%</div>
-                    <div class="result-subtitle">Model accuracy for this prediction</div>
-                </div>
-                `;
-            }
-
-            document.getElementById('resultsContainer').innerHTML = html;
-
-            // Now fill the textual input summary (separately, after DOM inserted)
-            const summary = inputStatusText({
-                soil_ph: npkValues && typeof npkValues.soil_ph === 'number' ? npkValues.soil_ph : (window._lastFormData && window._lastFormData.soil_ph),
-                temp: npkValues && typeof npkValues.temp === 'number' ? npkValues.temp : (window._lastFormData && window._lastFormData.temp),
-                humidity: npkValues && typeof npkValues.humidity === 'number' ? npkValues.humidity : (window._lastFormData && window._lastFormData.humidity),
-                nitrogen: npkValues && typeof npkValues.nitrogen === 'number' ? npkValues.nitrogen : (window._lastFormData && window._lastFormData.nitrogen),
-                phosphorus: npkValues && typeof npkValues.phosphorus === 'number' ? npkValues.phosphorus : (window._lastFormData && window._lastFormData.phosphorus),
-                potassium: npkValues && typeof npkValues.potassium === 'number' ? npkValues.potassium : (window._lastFormData && window._lastFormData.potassium)
-            }, prediction.crop);
-
-            const summaryEl = document.getElementById('inputSummaryText');
-            if (summaryEl) summaryEl.textContent = summary;
-        }
-
-        // show notification & error helpers (unchanged)
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `notification notification-${type}`;
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${type === 'success' ? '#4CAF50' : type === 'warning' ? '#FF9800' : '#2196F3'};
-                color: white;
-                padding: 15px 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                z-index: 1000;
-                transform: translateX(400px);
-                transition: transform 0.3s ease;
-                font-weight: 500;
-                max-width: 300px;
-            `;
-            notification.textContent = message;
-
-            document.body.appendChild(notification);
-
-            setTimeout(() => {
-                notification.style.transform = 'translateX(0)';
-            }, 100);
-
-            setTimeout(() => {
-                notification.style.transform = 'translateX(400px)';
-                setTimeout(() => {
-                    document.body.removeChild(notification);
-                }, 300);
-            }, 4000);
-        }
-
-        function showErrorMessage(message) {
-            document.getElementById('resultsContainer').innerHTML = `
-                <div class="result-card" style="border-left-color: #f44336;">
-                    <div class="result-title" style="color: #f44336;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Error
-                    </div>
-                    <div class="result-value" style="color: #f44336; font-size: 1.2rem;">${message}</div>
-                    <div class="result-subtitle">Please check your connection and try again</div>
-                </div>
-            `;
-        }
-
-        // Load soil types from backend (if available)
-        async function loadSoilTypes() {
-            try {
-                const soilResponse = await BackendAPI.getSoilTypes();
-                if (soilResponse.success && Array.isArray(soilResponse.data) && soilResponse.data.length > 0) {
-                    const soilSelect = document.getElementById('soil');
-                    const placeholder = soilSelect.querySelector('#soilPlaceholder');
-
-                    soilSelect.innerHTML = '';
-                    soilSelect.appendChild(placeholder);
-
-                    soilResponse.data.forEach(soil => {
-                        const option = document.createElement('option');
-                        option.value = soil.code || soil.id || (soil.name_en ? soil.name_en.toLowerCase().replace(/\s+/g, '-') : (soil.name || '').toLowerCase().replace(/\s+/g, '-'));
-                        option.textContent = `${soil.name_hi || soil.name} | ${soil.name_en || soil.name}`;
-                        soilSelect.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to load soil types from backend:', error);
-            }
-        }
-
-        // ===== Updated: smarter, variable probability heuristic (no backend changes) =====
-        function computeDerivedProbability(formData, completenessScore) {
-            // completenessScore 0..100
-            const base = 30; // base probability when minimal info
-            // quality points: each reasonable condition adds up to 10 points
-            let quality = 0;
-            const temp = formData.temp;
-            const humidity = formData.humidity;
-            const ph = formData.soil_ph;
-
-            if (Number.isFinite(temp) && temp >= -5 && temp <= 45) quality += 8;
-            if (Number.isFinite(humidity) && humidity >= 10 && humidity <= 90) quality += 8;
-            if (Number.isFinite(ph) && ph >= 5 && ph <= 8) quality += 8;
-
-            // completeness contributes (scaled)
-            const completenessContribution = Math.round(completenessScore * 0.55); // 0..55
-
-            let prob = base + completenessContribution + quality; // 30..~100
-            prob = Math.round(Math.min(95, prob)); // cap at 95 for safety
-            return prob;
-        }
-
-        // Handle form submission & prediction
-        async function handleFormSubmission(formData) {
-            try {
-                setLoading(true);
-
-                const backendResponse = await BackendAPI.predictCrop({
-                    ...formData,
-                    timestamp: new Date().toISOString(),
-                    userAgent: navigator.userAgent,
-                    language: currentLang
-                });
-
-                let prediction;
-                if (backendResponse.success && backendResponse.data && Object.keys(backendResponse.data).length > 0) {
-                    prediction = backendResponse.data;
-                } else {
-                    prediction = simulateMLPrediction(formData);
-                }
-
-                // Compute input completeness score
-                const numericFields = ['soil_ph', 'temp', 'humidity', 'nitrogen', 'phosphorus', 'potassium'];
-                let filledCount = 0;
-                numericFields.forEach(k => {
-                    const v = formData[k];
-                    if (typeof v === 'number' && Number.isFinite(v)) filledCount++;
-                });
-                const completenessScore = Math.round((filledCount / numericFields.length) * 100);
-
-                // Derived probability: use backend confidence if available otherwise computed heuristic
-                let derivedProb = null;
-                if (typeof prediction.confidence === 'number') {
-                    derivedProb = Math.round(prediction.confidence * 100);
-                } else {
-                    derivedProb = computeDerivedProbability(formData, completenessScore);
-                }
-
-                setLoading(false);
-
-                // store last form data globally to allow summary rendering
-                window._lastFormData = formData;
-
-                displayResults(prediction, completenessScore, derivedProb, {
-                    nitrogen: formData.nitrogen,
-                    phosphorus: formData.phosphorus,
-                    potassium: formData.potassium,
-                    soil_ph: formData.soil_ph,
-                    temp: formData.temp,
-                    humidity: formData.humidity
-                });
-            } catch (error) {
-                console.error('Prediction error:', error);
-                setLoading(false);
-                showErrorMessage('Unable to get prediction. Please try again.');
-            }
-        }
-
-        // Wire form submit
-        document.getElementById('cropForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const soil = document.getElementById('soil').value;
-            const sown = document.getElementById('sown').value;
-            const soil_ph = parseFloat(document.getElementById('soil_ph').value);
-            const temp = parseFloat(document.getElementById('temp').value);
-            const humidityRaw = parseFloat(document.getElementById('humidity').value);
-            // sanitize humidity here as well: clamp 0..100, else treat as invalid
-            const humidity = (Number.isFinite(humidityRaw) && humidityRaw >= 0 && humidityRaw <= 100) ? humidityRaw : NaN;
-
-            const nitrogen = parseFloat(document.getElementById('nitrogen').value);
-            const phosphorus = parseFloat(document.getElementById('phosphorus').value);
-            const potassium = parseFloat(document.getElementById('potassium').value);
-
-            if (!soil || !sown || isNaN(soil_ph) || isNaN(temp) || isNaN(humidity)) {
-                showNotification('कृपया सभी आवश्यक फ़ील्ड भरें / Please fill all required fields', 'warning');
-                return;
-            }
-
-            const formData = { soil, sown, soil_ph, temp, humidity, nitrogen, phosphorus, potassium };
-            await handleFormSubmission(formData);
-        });
-
-        // small input focus animation (unchanged)
-        const inputs = document.querySelectorAll('.form-control');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                this.style.transform = 'scale(1.02)';
-            });
-            input.addEventListener('blur', function() {
-                this.style.transform = 'scale(1)';
-            });
-        });
-
-        // ----------------- Auto-fill temp/humidity/season from system location (updated sanitize) -----------------
-        function deriveSeasonFromDate(date = new Date()) {
-            const month = date.getMonth() + 1;
-            if (month >= 6 && month <= 10) return 'kharif';
-            if (month >= 3 && month <= 5) return 'zaid';
-            return 'rabi';
-        }
-
-        async function tryAutoFillFromLocation() {
-            const tempEl = document.getElementById('temp');
-            const humidityEl = document.getElementById('humidity');
-            const sownEl = document.getElementById('sown');
-            const useLocBtn = document.getElementById('useLocationBtn');
-
-            function enableManualWeatherInputs() {
-                tempEl.readOnly = false;
-                humidityEl.readOnly = false;
-                sownEl.disabled = false;
-            }
-
-            function lockWeatherInputs() {
-                tempEl.readOnly = true;
-                humidityEl.readOnly = true;
-                sownEl.disabled = true;
-            }
-
-            if (!('geolocation' in navigator)) {
-                showNotification('Geolocation not available — please enter temperature, humidity and season manually', 'warning');
-                enableManualWeatherInputs();
-                return;
-            }
-
-            const geoOptions = { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 };
-            const geoPromise = new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, geoOptions);
-            });
-
-            try {
-                const pos = await geoPromise;
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-
-                try {
-                    const weatherResp = await BackendAPI.getWeather(lat, lon);
-                    if (weatherResp.success && weatherResp.data) {
-                        const data = weatherResp.data;
-                        const tempVal = (typeof data.temp === 'number') ? data.temp : null;
-                        const humidityVal = (typeof data.humidity === 'number') ? data.humidity : null;
-
-                        const hasTemp = Number.isFinite(tempVal);
-                        const hasHumidity = Number.isFinite(humidityVal);
-
-                        if (hasTemp) {
-                            tempEl.value = Math.round(tempVal * 100) / 100;
-                        }
-                        if (hasHumidity) {
-                            // clamp and store
-                            const h = Math.max(0, Math.min(100, Math.round(humidityVal * 100) / 100));
-                            humidityEl.value = h;
-                        }
-
-                        const derivedSeason = deriveSeasonFromDate(new Date());
-                        if (['kharif','rabi','zaid'].includes(derivedSeason)) {
-                            sownEl.value = derivedSeason;
-                        }
-
-                        if (hasTemp || hasHumidity) {
-                            if (hasTemp) tempEl.readOnly = true;
-                            if (hasHumidity) humidityEl.readOnly = true;
-                            sownEl.disabled = true;
-                            showNotification('Location detected — temperature, humidity and season auto-filled', 'success');
-                        } else {
-                            showNotification('Location found but weather unavailable — please enter temperature and humidity manually', 'warning');
-                            enableManualWeatherInputs();
-                        }
-                        return;
-                    } else {
-                        showNotification('Unable to fetch weather for your location — please enter temperature, humidity and season manually', 'warning');
-                        enableManualWeatherInputs();
-                        return;
-                    }
-                } catch (err) {
-                    console.error('Weather fetch error:', err);
-                    showNotification('Error fetching weather — please enter temperature, humidity and season manually', 'warning');
-                    enableManualWeatherInputs();
-                    return;
-                }
-            } catch (geoErr) {
-                console.warn('Geolocation error or permission denied:', geoErr);
-                showNotification('Location access denied — please enter temperature, humidity and season manually', 'warning');
-                enableManualWeatherInputs();
-                return;
-            }
-        }
-
-        // Initialize
-        async function initializeApp() {
-            updateLanguage();
-
-            try {
-                const healthCheck = await BackendAPI.checkHealth();
-                if (healthCheck.success) {
-                    showNotification('✅ Connected to Crop Sage AI Backend!', 'success');
-                    await loadSoilTypes();
-                } else {
-                    showNotification('⚠️ Backend offline - using local features', 'warning');
-                }
-            } catch (error) {
-                console.error('Health check failed:', error);
-                showNotification('🔄 Working in offline mode', 'info');
-            }
-
-            const useLocBtn = document.getElementById('useLocationBtn');
-            if (useLocBtn) {
-              useLocBtn.addEventListener('click', async function() {
-                useLocBtn.disabled = true;
-                const origHtml = useLocBtn.innerHTML;
-                useLocBtn.innerHTML = `<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Requesting...`;
-
-                try {
-                  await tryAutoFillFromLocation();
-                } catch (err) {
-                  console.error('Location button error:', err);
-                  showNotification('Unable to complete location request', 'warning');
-                } finally {
-                  useLocBtn.disabled = false;
-                  useLocBtn.innerHTML = origHtml;
-                }
-              });
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', initializeApp);
-    </script>
+    <!-- INPUT PAGE -->
+    <div id="pageInput" class="page active" aria-hidden="false">
+      <div class="center-card" role="region" aria-label="Input">
+        <h2 style="text-align:center;margin-bottom:12px"><i class="fas fa-edit"></i> <span id="inputHeading">Enter crop details</span></h2>
+
+        <form id="mainForm" onsubmit="return false;">
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <div class="radio-row" style="gap:10px">
+              <label><input type="radio" name="sowNow" value="now" checked> <span id="sowNowLabel">Sow now</span></label>
+              <label><input type="radio" name="sowNow" value="later"> <span id="sowLaterLabel">Sow later</span></label>
+            </div>
+            <div style="margin-left:auto" class="small" id="sowNote">Auto-fills weather for "Sow now"</div>
+          </div>
+
+          <div class="grid-2" style="gap:12px">
+            <div>
+              <label id="soilLabel">Soil type</label>
+              <select id="soil" class="form-control" required>
+                <option value="" disabled selected>Select soil</option>
+                <option value="alluvial">Alluvial</option>
+                <option value="loamy">Loamy</option>
+                <option value="clay">Clay</option>
+                <option value="sandy">Sandy</option>
+                <option value="black">Black</option>
+                <option value="red">Red</option>
+              </select>
+            </div>
+
+            <div id="seasonWrap">
+              <label id="seasonLabel">Sowing season</label>
+              <select id="sown" class="form-control">
+                <option value="" disabled selected>Select season</option>
+                <option value="kharif">Kharif</option>
+                <option value="rabi">Rabi</option>
+                <option value="zaid">Zaid</option>
+              </select>
+            </div>
+
+            <div>
+              <label id="phLabel">Soil pH</label>
+              <input id="soil_ph" class="form-control" type="number" step="any" placeholder="e.g. 6.8" required>
+            </div>
+
+            <div id="tempWrap">
+              <label id="tempLabel">Temperature (°C)</label>
+              <input id="temp" class="form-control" type="number" step="any" placeholder="e.g. 26" >
+            </div>
+
+            <div id="humidityWrap">
+              <label id="humidityLabel">Humidity (%)</label>
+              <input id="humidity" class="form-control" type="number" step="any" placeholder="e.g. 60" >
+            </div>
+
+            <div>
+              <label id="locationLabel">Auto location (only for "Sow now")</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button id="useLocationBtn" class="btn btn-ghost" type="button"><i class="fas fa-map-marker-alt"></i> <span id="locBtnText">Use my location</span></button>
+                <div class="small" id="locNote">Only for "Sow now"</div>
+              </div>
+            </div>
+
+            <div>
+              <label id="nitrogenLabel">Nitrogen (N) kg/ha</label>
+              <input id="nitrogen" class="form-control" type="number" step="any" placeholder="e.g. 50" required>
+            </div>
+
+            <div>
+              <label id="phosphorusLabel">Phosphorus (P) kg/ha</label>
+              <input id="phosphorus" class="form-control" type="number" step="any" placeholder="e.g. 25" required>
+            </div>
+
+            <div>
+              <label id="potassiumLabel">Potassium (K) kg/ha</label>
+              <input id="potassium" class="form-control" type="number" step="any" placeholder="e.g. 30" required>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;display:flex;gap:10px;justify-content:center">
+            <button id="predictBtn" class="btn btn-primary" type="button"><i class="fas fa-magic"></i> <span id="predictText">Predict</span></button>
+            <button id="resetBtn" class="btn btn-ghost" type="button"><i class="fas fa-eraser"></i> Reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- OUTPUT PAGE -->
+    <div id="pageOutput" class="page" aria-hidden="true">
+      <div class="back-row">
+        <div>
+          <button id="backBtn" class="back-btn"><i class="fas fa-arrow-left"></i> <span id="backText">Back</span></button>
+        </div>
+        <div>
+          <button id="langToggleBottom" class="lang-toggle"><i class="fas fa-language"></i> <span id="langLabelBottom">हिंदी</span></button>
+        </div>
+      </div>
+
+      <div class="output-wrap">
+        <div class="left-panel" aria-label="Recommended crops">
+          <h3 id="recommendedTitle">Recommended crops</h3>
+          <div id="cropList" class="crop-list" role="list">
+            <!-- items populated via JS -->
+          </div>
+        </div>
+
+        <div class="right-panel" aria-label="Input statuses">
+          <h3 id="detailsTitle">Input statuses</h3>
+          <div style="margin-top:10px" class="card-grid" id="statusCards">
+            <!-- six input-status cards (Nitrogen, Phosphorus, Potassium, pH, Temp, Humidity) -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/* --------------------------
+   Localization strings & helpers
+   -------------------------- */
+let currentLang = 'hi';
+const T = {
+  hi: {
+    langLabel:'English', brand:'किसान मित्र', subtitle:'आपका स्मार्ट कृषि सलाहकार',
+    inputHeading:'फसल की जानकारी दें', sowNow:'अब बोएं', sowLater:'बाद में बोएं', sowNote:'अब बोने पर मौसम स्वतः भरा जाएगा',
+    soil:'मिट्टी प्रकार', season:'बुवाई का मौसम', ph:'मिट्टी का pH', temp:'तापमान (°C)', humidity:'आर्द्रता (%)',
+    autoLoc:'स्थान से भरें (केवल अब)', nitrogen:'नाइट्रोजन (N)', phosphorus:'फास्फोरस (P)', potassium:'पोटैशियम (K)',
+    predict:'भविष्यवाणी करें', reset:'रीसेट', back:'वापस', recommended:'सुझावित फसलें', details:'इनपुट स्थिति',
+    status_good:'अच्छा', status_caution:'सावधानी', status_bad:'खराब', status_missing:'नहीं दिया',
+    helper_good:'फसल के लिए अच्छा', helper_caution:'ध्यान दें', helper_bad:'ठीक नहीं', helper_missing:'कृपया भरें',
+    meterLabel:'उपयुक्तता', locRequesting:'अनुरोध...'
+  },
+  en: {
+    langLabel:'हिंदी', brand:'Farmer Friend', subtitle:'Your smart crop advisor',
+    inputHeading:'Enter crop details', sowNow:'Sow now', sowLater:'Sow later', sowNote:'Auto-fills weather for "Sow now"',
+    soil:'Soil type', season:'Sowing season', ph:'Soil pH', temp:'Temperature (°C)', humidity:'Humidity (%)',
+    autoLoc:'Use location (now only)', nitrogen:'Nitrogen (N)', phosphorus:'Phosphorus (P)', potassium:'Potassium (K)',
+    predict:'Predict', reset:'Reset', back:'Back', recommended:'Recommended crops', details:'Input statuses',
+    status_good:'Good', status_caution:'Caution', status_bad:'High', status_missing:'Not provided',
+    helper_good:'Good for crop', helper_caution:'Needs attention', helper_bad:'Not suitable', helper_missing:'Please fill',
+    meterLabel:'Suitability', locRequesting:'Requesting...'
+  }
+};
+function t(key){ return (T[currentLang] && T[currentLang][key]) ? T[currentLang][key] : key; }
+
+/* Update UI language text */
+function setLang(lang){
+  currentLang = lang;
+  document.getElementById('langLabelTop').textContent = t('langLabel');
+  document.getElementById('langLabelBottom').textContent = t('langLabel');
+  document.getElementById('brandTitle').textContent = t('brand');
+  document.getElementById('subtitleText').textContent = t('subtitle');
+  document.getElementById('inputHeading').textContent = t('inputHeading');
+  document.getElementById('sowNowLabel').textContent = t('sowNow');
+  document.getElementById('sowLaterLabel').textContent = t('sowLater');
+  document.getElementById('sowNote').textContent = t('sowNote');
+  document.getElementById('soilLabel').textContent = t('soil');
+  document.getElementById('seasonLabel').textContent = t('season');
+  document.getElementById('phLabel').textContent = t('ph');
+  document.getElementById('tempLabel').textContent = t('temp');
+  document.getElementById('humidityLabel').textContent = t('humidity');
+  document.getElementById('locationLabel').textContent = t('autoLoc');
+  document.getElementById('nitrogenLabel').textContent = t('nitrogen') + ' (kg/ha)';
+  document.getElementById('phosphorusLabel').textContent = t('phosphorus') + ' (kg/ha)';
+  document.getElementById('potassiumLabel').textContent = t('potassium') + ' (kg/ha)';
+  document.getElementById('predictText').textContent = t('predict');
+  document.getElementById('resetBtn').textContent = t('reset');
+  document.getElementById('backText').textContent = t('back');
+  document.getElementById('recommendedTitle').textContent = t('recommended');
+  document.getElementById('detailsTitle').textContent = t('details');
+}
+setLang(currentLang);
+
+/* wire language toggles */
+document.getElementById('langToggleTop').addEventListener('click', ()=>{
+  setLang(currentLang==='hi'?'en':'hi');
+  document.getElementById('langToggleTop').setAttribute('aria-pressed', currentLang==='en');
+  document.getElementById('langToggleBottom').setAttribute('aria-pressed', currentLang==='en');
+  // refresh output if visible
+  if(document.getElementById('pageOutput').classList.contains('active')) {
+    renderOutput(window._lastPredictions || simulateMLPrediction(window._lastForm || {}), window._lastForm || {});
+  }
+});
+document.getElementById('langToggleBottom').addEventListener('click', ()=>{
+  setLang(currentLang==='hi'?'en':'hi');
+  document.getElementById('langToggleTop').setAttribute('aria-pressed', currentLang==='en');
+  document.getElementById('langToggleBottom').setAttribute('aria-pressed', currentLang==='en');
+  if(document.getElementById('pageOutput').classList.contains('active')) {
+    renderOutput(window._lastPredictions || simulateMLPrediction(window._lastForm || {}), window._lastForm || {});
+  }
+});
+
+/* ---------------------------
+   Form logic: show/hide season/temp/humidity
+   --------------------------- */
+function updateSowUI(){
+  const val = document.querySelector('input[name="sowNow"]:checked').value;
+  const seasonWrap = document.getElementById('seasonWrap');
+  const tempWrap = document.getElementById('tempWrap');
+  const humidityWrap = document.getElementById('humidityWrap');
+  const useLocationBtn = document.getElementById('useLocationBtn');
+  if(val === 'now'){ seasonWrap.style.display=''; tempWrap.style.display=''; humidityWrap.style.display=''; useLocationBtn.disabled=false; document.getElementById('locNote').textContent = t('sowNote'); }
+  else { seasonWrap.style.display='none'; tempWrap.style.display='none'; humidityWrap.style.display='none'; useLocationBtn.disabled=true; document.getElementById('locNote').textContent = t('autoLoc') + ' - Off'; }
+}
+Array.from(document.querySelectorAll('input[name="sowNow"]')).forEach(r=> r.addEventListener('change', updateSowUI));
+updateSowUI();
+
+/* ---------------------------
+   Prediction simulation & heuristics
+   --------------------------- */
+function simulateMLPrediction(formData){
+  const soil = (formData.soil||'').toLowerCase();
+  let list = [];
+  if(soil.includes('black')) list = ['Cotton','Chickpea','Pearl millet'];
+  else if(soil.includes('alluvial') || soil.includes('loamy')) list = ['Rice','Wheat','Maize'];
+  else if(soil.includes('sandy')) list = ['Maize','Sunflower','Cucumber'];
+  else if(soil.includes('red')) list = ['Pulses','Sorghum','Millet'];
+  else list = ['Maize','Wheat','Rice'];
+  if(formData.sown){
+    if(formData.sown === 'kharif') list.sort((a)=> a==='Rice' ? -1 : 1);
+    if(formData.sown === 'rabi') list.sort((a)=> a==='Wheat' ? -1 : 1);
+    if(formData.sown === 'zaid') list.sort((a)=> a==='Maize' ? -1 : 1);
+  }
+  const toObj = name => ({ crop:name, water_source: name.toLowerCase().includes('rice') ? 'River/Rain' : (name.toLowerCase().includes('cotton') ? 'Rain' : 'Tube well / Drip'), duration: name.toLowerCase().includes('rice') ? '120 days' : '90-120 days', water_required: name.toLowerCase().includes('rice') ? '1200 L/kg' : '500-900 L/kg' });
+  return { primary: toObj(list[0]), alternatives: list.map(toObj) };
+}
+
+/* ---------------------------
+   NPK and status helpers
+   --------------------------- */
+function getIdealNPK(cropName){ const name=(cropName||'').toLowerCase(); const defaultRange = {N:{min:20,max:80},P:{min:10,max:40},K:{min:20,max:80}}; if(name.includes('rice')) return {N:{min:60,max:140},P:{min:20,max:60},K:{min:40,max:120}}; if(name.includes('wheat')) return {N:{min:80,max:160},P:{min:30,max:70},K:{min:30,max:80}}; if(name.includes('maize')) return {N:{min:80,max:200},P:{min:30,max:80},K:{min:40,max:120}}; if(name.includes('cotton')) return {N:{min:60,max:120},P:{min:30,max:60},K:{min:40,max:120}}; return defaultRange; }
+function statusForNPK(value, ideal){ if(!Number.isFinite(value)) return 'missing'; if(value < ideal.min) return 'low'; if(value > ideal.max) return 'high'; return 'near'; }
+function statusForPH(v){ if(!Number.isFinite(v)) return 'missing'; if(v < 4.5 || v > 9) return 'bad'; if(v < 6.5 || v > 7.5) return 'caution'; return 'good'; }
+function statusForTemp(v){ if(!Number.isFinite(v)) return 'missing'; if(v < -10 || v > 50) return 'bad'; if(v < 5 || v > 40) return 'caution'; return 'good'; }
+function statusForHumidity(v){ if(!Number.isFinite(v)) return 'missing'; if(v < 0 || v > 100) return 'bad'; if(v < 30 || v > 80) return 'caution'; return 'good'; }
+
+/* mapping visual text + color classes */
+function statusTextAndClass(kind, status){
+  // kind indicates nitro/phos/...
+  if(status === 'missing') return {text: t('status_missing'), cls: 'status-missing'};
+  if(kind === 'npk'){
+    if(status === 'low') return {text: currentLang==='hi' ? 'कम' : 'Low', cls:'status-bad'};
+    if(status === 'near') return {text: currentLang==='hi' ? 'नज़दीक' : 'Near ideal', cls:'status-good'};
+    if(status === 'high') return {text: currentLang==='hi' ? 'ऊंचा' : 'High', cls:'status-bad'}; // you asked high in red
+  } else {
+    if(status === 'good') return {text:t('status_good'), cls:'status-good'};
+    if(status === 'caution') return {text:t('status_caution'), cls:'status-caution'};
+    if(status === 'bad') return {text:t('status_bad'), cls:'status-bad'};
+  }
+  return {text:t('status_missing'), cls:'status-missing'};
+}
+
+/* gauge converter: convert actual value to 0..100 based on ideal ranges */
+function npkValueToPercent(value, idealRange){
+  if(!Number.isFinite(value)) return 0;
+  // map 0..(ideal.min) => 0..40, ideal range => 40..70, above ideal to max => 70..100
+  if(value <= idealRange.min) { return Math.round((value / Math.max(1, idealRange.min)) * 40); }
+  if(value <= idealRange.max) {
+    const ratio = (value - idealRange.min) / (idealRange.max - idealRange.min);
+    return Math.round(40 + ratio * 30); // 40..70
+  }
+  // above ideal
+  const aboveRatio = (value - idealRange.max) / Math.max(1, idealRange.max);
+  return Math.min(100, Math.round(70 + Math.min(30, aboveRatio * 30)));
+}
+function phToPercent(v){ if(!Number.isFinite(v)) return 0; const clamped = Math.max(3, Math.min(9, v)); return Math.round(((clamped - 3) / (9 - 3)) * 100); }
+function tempToPercent(v){ if(!Number.isFinite(v)) return 0; const clamped = Math.max(-10, Math.min(50, v)); return Math.round(((clamped + 10) / 60) * 100); }
+function humidityToPercent(v){ if(!Number.isFinite(v)) return 0; const clamped = Math.max(0, Math.min(100, v)); return Math.round(clamped); }
+
+/* ---------------------------
+   Radial gauge renderer (SVG) - G3
+   - colored segments (red/orange/green) and a needle
+   - function returns an <svg> string with needle rotated for percentage
+   --------------------------- */
+function makeRadialGaugeSVG(percent, size=120){
+  // percent: 0..100, we map to arc -120deg .. +120deg (240deg sweep)
+  const cx = size/2, cy = size/2, r = (size/2) - 12;
+  const startAngle = -120 * Math.PI/180;
+  const endAngle = 120 * Math.PI/180;
+  // helpers
+  function polar(a, rad){ return { x: cx + rad * Math.cos(a), y: cy + rad * Math.sin(a) }; }
+  // colored segments thresholds: 0-35 red, 35-65 orange, 65-100 green
+  const segs = [
+    {from:0,to:35, color:'#f44336'},
+    {from:35,to:65, color:'#ff9800'},
+    {from:65,to:100,color:'#4caf50'}
+  ];
+  const segPaths = segs.map(seg=>{
+    const a1 = startAngle + ( (endAngle - startAngle) * (seg.from/100) );
+    const a2 = startAngle + ( (endAngle - startAngle) * (seg.to/100) );
+    const p1 = polar(a1, r);
+    const p2 = polar(a2, r);
+    const large = (Math.abs(a2-a1) > Math.PI) ? 1 : 0;
+    return `<path d="M ${p1.x} ${p1.y} A ${r} ${r} 0 ${large} 1 ${p2.x} ${p2.y}" fill="none" stroke="${seg.color}" stroke-width="10" stroke-linecap="round" />`;
+  }).join('');
+  // needle angle
+  const angle = startAngle + ( (endAngle - startAngle) * (percent / 100) );
+  const needleOuter = polar(angle, r - 6);
+  const needleInner = polar(angle + Math.PI, 10); // small tail
+  // center circle color based on percent
+  let centerColor = '#c62828';
+  if(percent >= 65) centerColor = '#2e7d32';
+  else if(percent >= 35) centerColor = '#f57c00';
+  // assemble
+  const svg = `
+    <svg class="gauge-svg" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="gauge">
+      <defs>
+        <filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.08"/></filter>
+      </defs>
+      <g filter="url(#s)">
+        ${segPaths}
+        <line x1="${cx}" y1="${cy}" x2="${needleOuter.x}" y2="${needleOuter.y}" stroke="${centerColor}" stroke-width="3.5" stroke-linecap="round" />
+        <circle cx="${cx}" cy="${cy}" r="6" fill="${centerColor}" stroke="#fff" stroke-width="1.4" />
+      </g>
+      <text x="${cx}" y="${cy + r*0.6}" text-anchor="middle" font-size="${size*0.12}" fill="#111" font-weight="700">${percent}%</text>
+    </svg>
+  `;
+  return svg;
+}
+
+/* ---------------------------
+   Build the six right-side status cards
+   --------------------------- */
+function renderStatusCards(formData, cropName){
+  const container = document.getElementById('statusCards');
+  container.innerHTML = '';
+  const ideal = getIdealNPK(cropName || '');
+  // prepare values
+  const vals = [
+    { id:'nitrogen', label: t('nitrogen'), type:'npk', raw: formData.nitrogen, percent: npkValueToPercent(formData.nitrogen, ideal.N), status: statusForNPK(formData.nitrogen, ideal.N) },
+    { id:'phosphorus', label: t('phosphorus'), type:'npk', raw: formData.phosphorus, percent: npkValueToPercent(formData.phosphorus, ideal.P), status: statusForNPK(formData.phosphorus, ideal.P) },
+    { id:'potassium', label: t('potassium'), type:'npk', raw: formData.potassium, percent: npkValueToPercent(formData.potassium, ideal.K), status: statusForNPK(formData.potassium, ideal.K) },
+    { id:'soil_ph', label: 'pH', type:'ph', raw: formData.soil_ph, percent: phToPercent(formData.soil_ph), status: statusForPH(formData.soil_ph) },
+    { id:'temp', label: t('temp'), type:'temp', raw: formData.temp, percent: tempToPercent(formData.temp), status: statusForTemp(formData.temp) },
+    { id:'humidity', label: t('humidity'), type:'hum', raw: formData.humidity, percent: humidityToPercent(formData.humidity), status: statusForHumidity(formData.humidity) }
+  ];
+  // arrange 3x2
+  vals.forEach(v=>{
+    const div = document.createElement('div');
+    div.className = 'input-card fade-in';
+    const s = statusTextAndClass(v.type==='npk'?'npk':'misc', v.status === 'near' ? 'near' : (v.status==='low' ? 'low' : (v.status==='high'?'high': v.status)));
+    // For npk mapping: 'near' -> green; 'low'/'high' -> red
+    let statusText = s.text, statusCls = s.cls;
+    // If mapping returned near/low/high handled above, adjust text for hi/ en
+    if(v.type === 'npk'){
+      if(v.status === 'near') { statusText = currentLang==='hi' ? 'नज़दीक' : 'Near ideal'; statusCls = 'status-good'; }
+      if(v.status === 'low') { statusText = currentLang==='hi' ? 'कम' : 'Low'; statusCls = 'status-bad'; }
+      if(v.status === 'high') { statusText = currentLang==='hi' ? 'ऊंचा' : 'High'; statusCls = 'status-bad'; }
+      if(v.status === 'missing') { statusText = t('status_missing'); statusCls = 'status-missing'; }
+    } else {
+      // ph / temp / humidity maps
+      if(v.status === 'good') { statusText = t('status_good'); statusCls = 'status-good'; }
+      if(v.status === 'caution') { statusText = t('status_caution'); statusCls = 'status-caution'; }
+      if(v.status === 'bad') { statusText = t('status_bad'); statusCls = 'status-bad'; }
+      if(v.status === 'missing') { statusText = t('status_missing'); statusCls = 'status-missing'; }
+    }
+
+    div.innerHTML = `
+      <h4>${v.label}</h4>
+      <div class="gauge-wrap">
+        <div>${makeRadialGaugeSVG(v.percent, 120)}</div>
+        <div class="gauge-meta">
+          <div class="muted">${v.raw !== undefined && Number.isFinite(v.raw) ? (v.raw + (v.id==='soil_ph'? '':'') ) : ''}</div>
+          <div class="status-label ${statusCls}">${statusText}</div>
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+/* ---------------------------
+   Render crop list (left) with expand/collapse per crop
+   - multiple expansions allowed
+   - expanded content: details + buildInputSummary for that crop
+   --------------------------- */
+function buildInputSummaryHtml(formData, cropName){
+  const ideal = getIdealNPK(cropName || '');
+  const nKey = statusForNPK(formData.nitrogen, ideal.N);
+  const pKey = statusForNPK(formData.phosphorus, ideal.P);
+  const kKey = statusForNPK(formData.potassium, ideal.K);
+  const phKey = statusForPH(formData.soil_ph);
+  const tKey = statusForTemp(formData.temp);
+  const hKey = statusForHumidity(formData.humidity);
+  const rows = [
+    {id:'N', label: currentLang==='hi' ? 'नाइट्रोजन (N)' : 'Nitrogen (N)', status:nKey, raw: Number.isFinite(formData.nitrogen)? formData.nitrogen+' kg/ha':''},
+    {id:'P', label: currentLang==='hi' ? 'फास्फोरस (P)' : 'Phosphorus (P)', status:pKey, raw: Number.isFinite(formData.phosphorus)? formData.phosphorus+' kg/ha':''},
+    {id:'K', label: currentLang==='hi' ? 'पोटैशियम (K)' : 'Potassium (K)', status:kKey, raw: Number.isFinite(formData.potassium)? formData.potassium+' kg/ha':''},
+    {id:'pH', label: 'pH', status:phKey, raw: Number.isFinite(formData.soil_ph)? 'pH '+formData.soil_ph:''},
+    {id:'Temp', label: currentLang==='hi' ? 'तापमान' : 'Temp', status:tKey, raw: Number.isFinite(formData.temp)? formData.temp+'°C':''},
+    {id:'Humidity', label: currentLang==='hi' ? 'आर्द्रता' : 'Humidity', status:hKey, raw: Number.isFinite(formData.humidity)? formData.humidity+'%':''}
+  ];
+  let html = '';
+  rows.forEach(r=>{
+    let badge = {emoji:'ℹ️', text:t('status_missing'), cls:'status-missing', helper: t('helper_missing')};
+    if(r.status === 'low'){ badge = {emoji:'❌', text: currentLang==='hi'?'कम':'Low', cls:'status-bad', helper:t('helper_bad')}; }
+    if(r.status === 'near' || r.status === 'good'){ badge = {emoji:'✅', text: currentLang==='hi'?'अच्छा':'Good', cls:'status-good', helper:t('helper_good')}; }
+    if(r.status === 'high'){ badge = {emoji:'❌', text: currentLang==='hi'?'ऊंचा':'High', cls:'status-bad', helper:t('helper_bad')}; }
+    if(r.status === 'caution'){ badge = {emoji:'⚠️', text: currentLang==='hi'?'सावधानी':'Caution', cls:'status-caution', helper:t('helper_caution')}; }
+    html += `
+      <div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.04)">
+        <div style="width:36px;text-align:center;font-size:18px">${badge.emoji}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-weight:700">${r.label}${r.raw? ' — '+r.raw : ''}</div>
+            <div style="margin-left:auto" class="${badge.cls}" style="font-weight:800">${badge.text}</div>
+          </div>
+          <div style="color:#333;opacity:0.9;font-size:0.92rem;margin-top:4px">${badge.helper}</div>
+        </div>
+      </div>
+    `;
+  });
+  return html;
+}
+
+function renderOutput(predictions, formData){
+  // store last
+  window._lastPredictions = predictions;
+  window._lastForm = formData;
+  // collapse any expanded panels (per requirement #5 - collapse and update)
+  // We'll clear the cropList and re-render fresh (no panels open)
+  const cropList = document.getElementById('cropList');
+  cropList.innerHTML = '';
+  const arr = predictions.alternatives.slice(0,6);
+  arr.forEach((p, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'crop-row';
+    row.tabIndex = 0;
+    row.setAttribute('role','button');
+    const cropId = 'crop_' + idx;
+    row.innerHTML = `
+      <div class="left"><strong>${p.crop}</strong><div class="muted" style="font-size:0.85rem;margin-left:8px">${p.duration}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn btn-ghost" aria-expanded="false" data-index="${idx}" title="Show details"><i class="fas fa-chevron-down chev" data-index="${idx}"></i></button>
+      </div>
+    `;
+    // below the row add an expandable container (initially hidden)
+    const panel = document.createElement('div');
+    panel.className = 'expanded-panel hidden';
+    panel.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:800;margin-bottom:6px">${p.crop}</div>
+          <div class="small">${p.water_source} · ${p.duration} · ${p.water_required}</div>
+        </div>
+        <div style="min-width:220px;flex-basis:220px">
+          <!-- summary goes here -->
+          <div id="${cropId}_summary"></div>
+        </div>
+      </div>
+    `;
+    // add handlers: expand button toggles panel (multiple allowed)
+    row.querySelector('button').addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const expanded = row.querySelector('button').getAttribute('aria-expanded') === 'true';
+      // toggle without collapsing other panels (user wanted multiple)
+      row.querySelector('button').setAttribute('aria-expanded', String(!expanded));
+      const chev = row.querySelector('.chev');
+      if(!expanded){ chev.classList.add('chev-open'); panel.classList.remove('hidden'); panel.classList.add('visible'); }
+      else { chev.classList.remove('chev-open'); panel.classList.remove('visible'); panel.classList.add('hidden'); }
+      // fill summary on open
+      if(!expanded){
+        const summ = document.getElementById(cropId + '_summary');
+        summ.innerHTML = buildInputSummaryHtml(formData, p.crop);
+        // scroll into view a bit
+        panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+      }
+    });
+    // also allow clicking row to expand
+    row.addEventListener('click', ()=>{
+      const btn = row.querySelector('button'); btn.click();
+    });
+
+    cropList.appendChild(row);
+    cropList.appendChild(panel);
+  });
+
+  // right side: six status cards (3x2)
+  renderStatusCards(formData, predictions.primary.crop);
+}
+
+/* ---------------------------
+   Navigation: Predict, Back
+   --------------------------- */
+function showPage(id){
+  if(id === 'input'){ document.getElementById('pageInput').classList.add('active'); document.getElementById('pageInput').setAttribute('aria-hidden','false'); document.getElementById('pageOutput').classList.remove('active'); document.getElementById('pageOutput').setAttribute('aria-hidden','true'); }
+  else { document.getElementById('pageOutput').classList.add('active'); document.getElementById('pageOutput').setAttribute('aria-hidden','false'); document.getElementById('pageInput').classList.remove('active'); document.getElementById('pageInput').setAttribute('aria-hidden','true'); }
+}
+
+document.getElementById('predictBtn').addEventListener('click', ()=>{
+  // collect form
+  const soil = document.getElementById('soil').value;
+  const sowNowVal = document.querySelector('input[name="sowNow"]:checked').value;
+  const sown = document.getElementById('sown').value;
+  const soil_ph = parseFloat(document.getElementById('soil_ph').value);
+  const tempRaw = parseFloat(document.getElementById('temp').value);
+  const humidityRaw = parseFloat(document.getElementById('humidity').value);
+  const nitrogen = parseFloat(document.getElementById('nitrogen').value);
+  const phosphorus = parseFloat(document.getElementById('phosphorus').value);
+  const potassium = parseFloat(document.getElementById('potassium').value);
+  // basic validation
+  if(!soil || !Number.isFinite(soil_ph) || !Number.isFinite(nitrogen) || !Number.isFinite(phosphorus) || !Number.isFinite(potassium)){
+    alert(currentLang==='hi' ? 'कृपया सभी आवश्यक फ़ील्ड भरें' : 'Please fill required fields'); return;
+  }
+  if(sowNowVal === 'now'){
+    if(!sown || !Number.isFinite(tempRaw) || !Number.isFinite(humidityRaw)){ alert(currentLang==='hi' ? 'कृपया मौसम, तापमान और आर्द्रता भरें' : 'Please fill season, temp and humidity'); return; }
+  }
+  const formData = {
+    soil, sown: sowNowVal==='now' ? sown : null, soil_ph, temp: sowNowVal==='now' ? tempRaw : NaN, humidity: sowNowVal==='now' ? (Number.isFinite(humidityRaw) ? humidityRaw : NaN) : NaN,
+    nitrogen: Number.isFinite(nitrogen)?nitrogen:NaN, phosphorus: Number.isFinite(phosphorus)?phosphorus:NaN, potassium: Number.isFinite(potassium)?potassium:NaN, sowNow: sowNowVal==='now'
+  };
+  // compute predictions
+  const preds = simulateMLPrediction(formData);
+  // store last form/preds
+  window._lastForm = formData; window._lastPredictions = preds;
+  // collapse any expanded panels when moving from input to output (requirement 5)
+  showPage('output');
+  // render output
+  renderOutput(preds, formData);
+  // scroll top
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+document.getElementById('backBtn').addEventListener('click', ()=>{
+  // when going back, collapse panels and let user edit - requirement collapse & update
+  showPage('input');
+  // reset any expansions in crop list (they will be re-rendered next time)
+  const cropList = document.getElementById('cropList'); cropList.innerHTML = '';
+  // restore form values if present
+  if(window._lastForm){
+    try{
+      const f = window._lastForm;
+      if(f.soil) document.getElementById('soil').value = f.soil;
+      if(f.sown) document.getElementById('sown').value = f.sown;
+      if(Number.isFinite(f.soil_ph)) document.getElementById('soil_ph').value = f.soil_ph;
+      if(Number.isFinite(f.temp)) document.getElementById('temp').value = f.temp;
+      if(Number.isFinite(f.humidity)) document.getElementById('humidity').value = f.humidity;
+      if(Number.isFinite(f.nitrogen)) document.getElementById('nitrogen').value = f.nitrogen;
+      if(Number.isFinite(f.phosphorus)) document.getElementById('phosphorus').value = f.phosphorus;
+      if(Number.isFinite(f.potassium)) document.getElementById('potassium').value = f.potassium;
+      if(f.sowNow === false) document.querySelector('input[name="sowNow"][value="later"]').checked = true;
+      updateSowUI();
+    }catch(e){}
+  }
+});
+
+/* reset */
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  document.getElementById('mainForm').reset();
+  updateSowUI();
+});
+
+/* Auto location (only active for Sow now) */
+document.getElementById('useLocationBtn').addEventListener('click', async function(){
+  if(this.disabled) return;
+  const orig = this.innerHTML; this.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('locRequesting')}`; this.disabled = true;
+  try{
+    if(!('geolocation' in navigator)){ alert(currentLang==='hi'?'ब्राउज़र में लोकेशन न उपलब्ध':'Geolocation not available'); return; }
+    const pos = await new Promise((res,rej)=> navigator.geolocation.getCurrentPosition(res,rej,{timeout:12000}));
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current_weather=true&hourly=relativehumidity_2m&timezone=auto`;
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('weather fetch fail');
+    const data = await r.json();
+    const tempVal = typeof data.current_weather?.temperature === 'number' ? data.current_weather.temperature : null;
+    let hum = null;
+    if(data.hourly && Array.isArray(data.hourly.relativehumidity_2m) && Array.isArray(data.hourly.time)){
+      const cur = data.current_weather?.time ?? null;
+      if(cur){ const idx = data.hourly.time.indexOf(cur); if(idx>=0 && typeof data.hourly.relativehumidity_2m[idx]==='number') hum = data.hourly.relativehumidity_2m[idx]; }
+      if(hum===null && data.hourly.relativehumidity_2m.length>0) hum = data.hourly.relativehumidity_2m[0];
+    } else if(typeof data.relativehumidity_2m === 'number') hum = data.relativehumidity_2m;
+    if(typeof tempVal === 'number') document.getElementById('temp').value = Math.round(tempVal*100)/100;
+    if(typeof hum === 'number') document.getElementById('humidity').value = Math.round(hum*100)/100;
+    // derive season from date
+    const m = (new Date()).getMonth()+1;
+    let season = 'rabi'; if(m>=6 && m<=10) season='kharif'; else if(m>=3 && m<=5) season='zaid';
+    document.getElementById('sown').value = season;
+    alert(currentLang==='hi'?'स्थान मिला — मौसम भरा गया':'Location found — weather filled');
+  }catch(err){
+    console.error(err); alert(currentLang==='hi'?'मौसम नहीं मिला — मैन्युअल दर्ज करें':'Unable to fetch weather — please fill manually');
+  }finally{ this.innerHTML = orig; this.disabled = false; }
+});
+
+/* On load: restore values if present */
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(window._lastForm && Object.keys(window._lastForm).length){
+    try{
+      const f = window._lastForm;
+      if(f.soil) document.getElementById('soil').value = f.soil;
+      if(f.sown) document.getElementById('sown').value = f.sown;
+      if(Number.isFinite(f.soil_ph)) document.getElementById('soil_ph').value = f.soil_ph;
+      if(Number.isFinite(f.temp)) document.getElementById('temp').value = f.temp;
+      if(Number.isFinite(f.humidity)) document.getElementById('humidity').value = f.humidity;
+      if(Number.isFinite(f.nitrogen)) document.getElementById('nitrogen').value = f.nitrogen;
+      if(Number.isFinite(f.phosphorus)) document.getElementById('phosphorus').value = f.phosphorus;
+      if(Number.isFinite(f.potassium)) document.getElementById('potassium').value = f.potassium;
+      if(f.sowNow === false) document.querySelector('input[name="sowNow"][value="later"]').checked = true;
+      updateSowUI();
+    }catch(e){}
+  }
+});
+</script>
 </body>
 </html>
